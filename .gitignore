@@ -1,0 +1,17 @@
+﻿# Dependencies
+node_modules/
+
+# Local Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+
+# Vercel Metadata
+.vercel/
+
+# Logs
+*.log
+
+# OS Metadata
+.DS_Store
+Thumbs.db

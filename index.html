@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Application Command Center</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Inter & JetBrains Mono Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            border: '#27272a',
+            background: '#09090b',
+            foreground: '#fafafa',
+            card: '#121215',
+            muted: '#71717a',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #09090b;
+      color: #fafafa;
+      font-family: 'Inter', sans-serif;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #09090b;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 3px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #3f3f46;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.8);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased flex flex-col">
+
+  <!-- LOCK OVERLAY SCREEN -->
+  <div id="lock-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-[#09090b] p-4">
+    <div class="w-full max-w-sm border border-border bg-card p-6 rounded-xl shadow-2xl space-y-4 text-center">
+      <div class="w-12 h-12 mx-auto rounded-full bg-zinc-900 border border-border flex items-center justify-center text-zinc-300">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-base font-semibold text-foreground tracking-tight">Access Locked</h2>
+        <p class="text-xs text-muted mt-1">Enter your passcode to view and manage applications</p>
+      </div>
+      <form id="lock-form" onsubmit="handleUnlockSubmit(event)" class="space-y-3">
+        <div>
+          <input 
+            type="password" 
+            id="passcode-input" 
+            required 
+            placeholder="Enter passcode..."
+            class="w-full bg-zinc-900 border border-border rounded-lg px-3.5 py-2.5 text-center text-sm font-mono tracking-widest text-foreground outline-none focus:border-zinc-500 transition-colors"
+          />
+        </div>
+        <div id="lock-error" class="hidden text-xs text-red-400 font-mono"></div>
+        <button 
+          type="submit" 
+          id="unlock-btn"
+          class="w-full py-2 px-4 rounded-lg bg-white text-black font-medium text-xs hover:bg-zinc-200 transition-colors cursor-pointer shadow-sm"
+        >
+          Unlock Dashboard
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Navigation / Header -->
+  <header class="border-b border-border bg-card/60 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center font-mono font-bold text-sm shadow-sm">
+          JA
+        </div>
+        <div>
+          <h1 class="text-base font-semibold tracking-tight text-foreground flex items-center gap-2">
+            Job Applications
+            <span class="text-xs font-mono font-normal px-2 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Neon Postgres Live</span>
+          </h1>
+          <p class="text-xs text-muted">AI Agent & Manual Recording Dashboard</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button onclick="openAddModal()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-white text-black text-xs font-medium hover:bg-zinc-200 transition-colors shadow-sm cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Record Application
+        </button>
+        <button onclick="fetchApplications()" class="inline-flex items-center justify-center p-2 rounded-md border border-border bg-card hover:bg-zinc-800 text-muted hover:text-foreground transition-colors cursor-pointer" title="Refresh">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+        <button onclick="lockDashboard()" class="inline-flex items-center justify-center p-2 rounded-md border border-border bg-card hover:bg-zinc-800 text-muted hover:text-foreground transition-colors cursor-pointer" title="Lock Dashboard">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- KPI Metric Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="border border-border bg-card p-4 rounded-lg shadow-sm">
+        <div class="text-xs font-medium text-muted uppercase tracking-wider">Total Applied</div>
+        <div class="text-2xl font-bold tracking-tight text-foreground mt-1" id="stat-total">0</div>
+      </div>
+      <div class="border border-border bg-card p-4 rounded-lg shadow-sm">
+        <div class="text-xs font-medium text-muted uppercase tracking-wider">Interviews</div>
+        <div class="text-2xl font-bold tracking-tight text-blue-400 mt-1" id="stat-interviews">0</div>
+      </div>
+      <div class="border border-border bg-card p-4 rounded-lg shadow-sm">
+        <div class="text-xs font-medium text-muted uppercase tracking-wider">HR Contacted</div>
+        <div class="text-2xl font-bold tracking-tight text-amber-400 mt-1" id="stat-contacted">0</div>
+      </div>
+      <div class="border border-border bg-card p-4 rounded-lg shadow-sm">
+        <div class="text-xs font-medium text-muted uppercase tracking-wider">Offers</div>
+        <div class="text-2xl font-bold tracking-tight text-emerald-400 mt-1" id="stat-offers">0</div>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between border border-border bg-card p-3 rounded-lg">
+      <div class="flex items-center gap-2 flex-1 max-w-md">
+        <svg class="w-4 h-4 text-muted shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" id="search-input" oninput="applyFilters()" placeholder="Filter by company, role, or notes..." class="w-full bg-transparent text-sm text-foreground placeholder-muted outline-none border-0 focus:ring-0">
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center gap-1.5 bg-zinc-900 border border-border px-2.5 py-1 rounded-md">
+          <span class="text-[11px] font-mono text-muted">Date:</span>
+          <input type="date" id="date-filter" onchange="applyFilters()" class="bg-transparent text-xs text-foreground outline-none cursor-pointer">
+          <button onclick="clearDateFilter()" id="clear-date-btn" class="hidden text-muted hover:text-foreground text-xs ml-1 cursor-pointer" title="Clear date filter">&times;</button>
+        </div>
+        <select id="status-filter" onchange="applyFilters()" class="bg-zinc-900 border border-border text-xs rounded-md px-2.5 py-1.5 text-foreground outline-none cursor-pointer">
+          <option value="">All Statuses</option>
+          <option value="Applied">Applied</option>
+          <option value="Screening">Screening</option>
+          <option value="Interviewing">Interviewing</option>
+          <option value="Offer">Offer</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Withdrawn">Withdrawn</option>
+        </select>
+        <select id="hr-filter" onchange="applyFilters()" class="bg-zinc-900 border border-border text-xs rounded-md px-2.5 py-1.5 text-foreground outline-none cursor-pointer">
+          <option value="">All HR Contact Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Contacted">Contacted</option>
+          <option value="Replied">Replied</option>
+          <option value="Ghosted">Ghosted</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Applications Table -->
+    <div class="border border-border rounded-lg bg-card overflow-hidden shadow-sm">
+      <div class="overflow-x-auto custom-scroll">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-zinc-900/80 border-b border-border text-[11px] font-mono uppercase tracking-wider text-muted select-none">
+            <tr>
+              <th class="py-3.5 px-4 font-semibold">Date Applied</th>
+              <th class="py-3.5 px-4 font-semibold">Company</th>
+              <th class="py-3.5 px-4 font-semibold">Role</th>
+              <th class="py-3.5 px-4 font-semibold">Platform</th>
+              <th class="py-3.5 px-4 font-semibold">Application Status</th>
+              <th class="py-3.5 px-4 font-semibold">HR Agent Contact</th>
+              <th class="py-3.5 px-4 font-semibold">Notes</th>
+              <th class="py-3.5 px-4 font-semibold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="table-body" class="divide-y divide-border/60">
+            <tr>
+              <td colspan="8" class="py-12 text-center text-muted font-mono text-xs">
+                Loading applications...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal: Add Application -->
+  <div id="add-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+    <div class="border border-border bg-card w-full max-w-md rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-5 py-4 border-b border-border flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-foreground">Record Job Application</h3>
+        <button onclick="closeAddModal()" class="text-muted hover:text-foreground cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="add-form" onsubmit="handleFormSubmit(event)" class="p-5 space-y-4 text-xs">
+        <div>
+          <label class="block text-muted font-medium mb-1">Company *</label>
+          <input type="text" name="company" required placeholder="e.g. Stripe, Vercel, Supabase" class="w-full bg-zinc-900 border border-border rounded px-3 py-2 text-foreground outline-none focus:border-zinc-500">
+        </div>
+        <div>
+          <label class="block text-muted font-medium mb-1">Role *</label>
+          <input type="text" name="role" required placeholder="e.g. Backend Software Engineer" class="w-full bg-zinc-900 border border-border rounded px-3 py-2 text-foreground outline-none focus:border-zinc-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-muted font-medium mb-1">Date Applied</label>
+            <input type="date" name="date_applied" id="modal-date" class="w-full bg-zinc-900 border border-border rounded px-3 py-2 text-foreground outline-none focus:border-zinc-500 cursor-pointer">
+          </div>
+          <div>
+            <label class="block text-muted font-medium mb-1">Platform</label>
+            <input type="text" name="platform" placeholder="LinkedIn, Wellfound, Direct" value="LinkedIn" class="w-full bg-zinc-900 border border-border rounded px-3 py-2 text-foreground outline-none focus:border-zinc-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-muted font-medium mb-1">Application Status</label>
+            <select name="status" class="w-full bg-zinc-900 border border-border rounded px-3 py-2 text-foreground outline-none focus:border-zinc-500 cursor-pointer">
+              <option value="Applied">Applied</option>
+              <option value="Screening">Screening</option>
+              <option value="Interviewing">Interviewing</option>
+              <option value="Offer">Offer</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Withdrawn">Withdrawn</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-muted font-medium mb-1">HR Agent Contact</label>
+            <select name="hr_contact_status" class="w-full bg-zinc-900 border border-border rounded px-3 py-2 text-foreground outline-none focus:border-zinc-500 cursor-pointer">
+              <option value="Pending">Pending</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Replied">Replied</option>
+              <option value="Ghosted">Ghosted</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-muted font-medium mb-1">Notes / Remarks</label>
+          <textarea name="notes" rows="2" placeholder="e.g. Recruiter message sent on LinkedIn, referral from engineer..." class="w-full bg-zinc-900 border border-border rounded px-3 py-2 text-foreground outline-none focus:border-zinc-500"></textarea>
+        </div>
+        <div class="pt-2 flex items-center justify-start gap-2 border-t border-border">
+          <button type="submit" class="px-4 py-1.5 rounded bg-white text-black font-medium hover:bg-zinc-200 cursor-pointer">Save Application</button>
+          <button type="button" onclick="closeAddModal()" class="px-3 py-1.5 rounded border border-border text-muted hover:text-foreground cursor-pointer">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let applications = [];
+    const PASSCODE_STORAGE_KEY = 'job_app_passcode';
+
+    function getAuthHeaders() {
+      const passcode = sessionStorage.getItem(PASSCODE_STORAGE_KEY) || '';
+      return {
+        'Content-Type': 'application/json',
+        'x-lock-passcode': passcode
+      };
+    }
+
+    async function checkLockStatus() {
+      const stored = sessionStorage.getItem(PASSCODE_STORAGE_KEY) || '';
+      try {
+        const res = await fetch('/api/verify-lock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-lock-passcode': stored },
+          body: JSON.stringify({ passcode: stored })
+        });
+        const data = await res.json();
+        
+        if (!data.locked || data.valid) {
+          // Unlocked
+          document.getElementById('lock-screen').classList.add('hidden');
+          fetchApplications();
+        } else {
+          // Locked
+          document.getElementById('lock-screen').classList.remove('hidden');
+          document.getElementById('passcode-input').focus();
+        }
+      } catch (err) {
+        console.error('Error verifying lock:', err);
+        document.getElementById('lock-screen').classList.add('hidden');
+        fetchApplications();
+      }
+    }
+
+    async function handleUnlockSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('passcode-input');
+      const errEl = document.getElementById('lock-error');
+      const passcode = input.value.trim();
+
+      errEl.classList.add('hidden');
+      try {
+        const res = await fetch('/api/verify-lock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ passcode })
+        });
+        const data = await res.json();
+        if (data.valid) {
+          sessionStorage.setItem(PASSCODE_STORAGE_KEY, passcode);
+          document.getElementById('lock-screen').classList.add('hidden');
+          input.value = '';
+          fetchApplications();
+        } else {
+          errEl.textContent = 'Incorrect passcode. Access denied.';
+          errEl.classList.remove('hidden');
+          input.select();
+        }
+      } catch (err) {
+        errEl.textContent = 'Server error verifying passcode: ' + err.message;
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    function lockDashboard() {
+      sessionStorage.removeItem(PASSCODE_STORAGE_KEY);
+      document.getElementById('lock-screen').classList.remove('hidden');
+      document.getElementById('passcode-input').value = '';
+      document.getElementById('passcode-input').focus();
+    }
+
+    // Helper: format YYYY-MM-DD
+    function formatDate(str) {
+      if (!str) return '—';
+      const d = new Date(str);
+      if (isNaN(d)) return str;
+      return d.toISOString().split('T')[0];
+    }
+
+    async function fetchApplications() {
+      try {
+        const res = await fetch('/api/jobs', {
+          headers: getAuthHeaders()
+        });
+        if (res.status === 401) {
+          lockDashboard();
+          return;
+        }
+        if (!res.ok) throw new Error('Failed to fetch');
+        applications = await res.json();
+        renderTable(applications);
+        updateStats(applications);
+      } catch (err) {
+        console.error(err);
+        document.getElementById('table-body').innerHTML = `
+          <tr><td colspan="8" class="py-8 text-center text-red-400 font-mono text-xs">Error loading data: ${err.message}</td></tr>
+        `;
+      }
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('table-body');
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `
+          <tr><td colspan="8" class="py-12 text-center text-muted font-mono text-xs">No matching job applications found. Click "Record Application" or clear your filters!</td></tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = data.map(app => {
+        const formattedDate = formatDate(app.date_applied);
+        return `
+        <tr class="hover:bg-zinc-900/50 transition-colors group">
+          <td class="py-3 px-4 font-mono text-xs text-muted whitespace-nowrap">
+            <input 
+              type="date" 
+              value="${formattedDate !== '—' ? formattedDate : ''}" 
+              onchange="updateApplication(${app.id}, 'date_applied', this.value)"
+              class="bg-zinc-900/90 border border-border/70 hover:border-zinc-500 focus:border-zinc-400 rounded px-2 py-1 text-foreground cursor-pointer outline-none text-xs font-mono transition-colors"
+            />
+          </td>
+          <td class="py-3 px-4 font-semibold text-foreground whitespace-nowrap">${escapeHtml(app.company)}</td>
+          <td class="py-3 px-4 text-zinc-300 whitespace-nowrap">${escapeHtml(app.role)}</td>
+          <td class="py-3 px-4 font-mono text-xs text-muted whitespace-nowrap">${escapeHtml(app.platform || 'Direct')}</td>
+          <td class="py-3 px-4">
+            <select onchange="updateApplication(${app.id}, 'status', this.value)" class="bg-zinc-900 border border-border/80 text-[11px] font-mono rounded px-2 py-1 text-foreground cursor-pointer outline-none">
+              <option value="Applied" ${app.status === 'Applied' ? 'selected' : ''}>Applied</option>
+              <option value="Screening" ${app.status === 'Screening' ? 'selected' : ''}>Screening</option>
+              <option value="Interviewing" ${app.status === 'Interviewing' ? 'selected' : ''}>Interviewing</option>
+              <option value="Offer" ${app.status === 'Offer' ? 'selected' : ''}>Offer</option>
+              <option value="Rejected" ${app.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
+              <option value="Withdrawn" ${app.status === 'Withdrawn' ? 'selected' : ''}>Withdrawn</option>
+            </select>
+          </td>
+          <td class="py-3 px-4">
+            <select onchange="updateApplication(${app.id}, 'hr_contact_status', this.value)" class="bg-zinc-900 border border-border/80 text-[11px] font-mono rounded px-2 py-1 text-foreground cursor-pointer outline-none">
+              <option value="Pending" ${app.hr_contact_status === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option value="Contacted" ${app.hr_contact_status === 'Contacted' ? 'selected' : ''}>Contacted</option>
+              <option value="Replied" ${app.hr_contact_status === 'Replied' ? 'selected' : ''}>Replied</option>
+              <option value="Ghosted" ${app.hr_contact_status === 'Ghosted' ? 'selected' : ''}>Ghosted</option>
+            </select>
+          </td>
+          <td class="py-3 px-4 max-w-xs">
+            <input 
+              type="text" 
+              value="${escapeHtml(app.notes || '')}" 
+              placeholder="Add note..."
+              onchange="updateApplication(${app.id}, 'notes', this.value)"
+              class="w-full bg-transparent border border-transparent hover:border-border/60 focus:border-border focus:bg-zinc-900 px-2 py-1 rounded text-xs text-zinc-300 outline-none transition-colors"
+            />
+          </td>
+          <td class="py-3 px-4 text-right whitespace-nowrap">
+            <button onclick="deleteApplication(${app.id})" class="text-zinc-500 hover:text-red-400 p-1 transition-colors cursor-pointer" title="Delete record">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </td>
+        </tr>
+        `;
+      }).join('');
+    }
+
+    function updateStats(data) {
+      document.getElementById('stat-total').textContent = data.length;
+      document.getElementById('stat-interviews').textContent = data.filter(d => d.status === 'Interviewing' || d.status === 'Screening').length;
+      document.getElementById('stat-contacted').textContent = data.filter(d => d.hr_contact_status === 'Contacted' || d.hr_contact_status === 'Replied').length;
+      document.getElementById('stat-offers').textContent = data.filter(d => d.status === 'Offer').length;
+    }
+
+    function applyFilters() {
+      const q = document.getElementById('search-input').value.toLowerCase();
+      const status = document.getElementById('status-filter').value;
+      const hr = document.getElementById('hr-filter').value;
+      const dateFilter = document.getElementById('date-filter').value;
+
+      const clearBtn = document.getElementById('clear-date-btn');
+      if (dateFilter) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+
+      const filtered = applications.filter(item => {
+        const matchesQ = (item.company || '').toLowerCase().includes(q) || 
+                         (item.role || '').toLowerCase().includes(q) ||
+                         (item.notes || '').toLowerCase().includes(q);
+        const matchesStatus = !status || item.status === status;
+        const matchesHr = !hr || item.hr_contact_status === hr;
+        const matchesDate = !dateFilter || formatDate(item.date_applied) === dateFilter;
+        return matchesQ && matchesStatus && matchesHr && matchesDate;
+      });
+
+      renderTable(filtered);
+    }
+
+    function clearDateFilter() {
+      document.getElementById('date-filter').value = '';
+      applyFilters();
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = {
+        company: fd.get('company'),
+        role: fd.get('role'),
+        platform: fd.get('platform') || 'LinkedIn',
+        status: fd.get('status') || 'Applied',
+        hr_contact_status: fd.get('hr_contact_status') || 'Pending',
+        date_applied: fd.get('date_applied') || new Date().toISOString().split('T')[0],
+        notes: fd.get('notes') || ''
+      };
+
+      try {
+        const res = await fetch('/api/jobs', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Failed to save');
+        closeAddModal();
+        e.target.reset();
+        await fetchApplications();
+      } catch (err) {
+        alert('Error saving application: ' + err.message);
+      }
+    }
+
+    async function updateApplication(id, field, value) {
+      try {
+        const res = await fetch(`/api/jobs/${id}`, {
+          method: 'PATCH',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ [field]: value })
+        });
+        if (!res.ok) throw new Error('Failed to update');
+        const updated = await res.json();
+        const idx = applications.findIndex(a => a.id === id);
+        if (idx !== -1) {
+          applications[idx] = updated;
+          updateStats(applications);
+        }
+      } catch (err) {
+        alert('Error updating: ' + err.message);
+        fetchApplications();
+      }
+    }
+
+    async function deleteApplication(id) {
+      if (!confirm('Delete this record?')) return;
+      try {
+        const res = await fetch(`/api/jobs/${id}`, { 
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (!res.ok) throw new Error('Failed to delete');
+        applications = applications.filter(a => a.id !== id);
+        applyFilters();
+        updateStats(applications);
+      } catch (err) {
+        alert('Error deleting: ' + err.message);
+      }
+    }
+
+    function openAddModal() {
+      document.getElementById('modal-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('add-modal').classList.remove('hidden');
+    }
+
+    function closeAddModal() {
+      document.getElementById('add-modal').classList.add('hidden');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Initial check
+    checkLockStatus();
+  </script>
+</body>
+</html>
