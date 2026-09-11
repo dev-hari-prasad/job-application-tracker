@@ -143,9 +143,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 5. PATCH /api/jobs/:id - Update application
-    if (req.method === 'PATCH' && pathname.startsWith('/api/jobs/')) {
-      const id = pathname.split('/')[3];
+    // Helper to extract job ID from pathname (/api/jobs/:id) or query (?id=...)
+    let jobId = url.searchParams.get('id');
+    if (!jobId && pathname.startsWith('/api/jobs/')) {
+      jobId = pathname.replace('/api/jobs/', '').split('/')[0].split('?')[0];
+    }
+
+    // 5. PATCH /api/jobs/:id or /api/jobs?id=:id - Update application
+    if (req.method === 'PATCH' && (pathname.startsWith('/api/jobs/') || (pathname === '/api/jobs' && jobId))) {
+      if (!jobId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing job ID' }));
+        return;
+      }
+      const id = jobId;
       const data = await parseBody(req);
       
       const fields = [];
@@ -209,10 +220,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 6. DELETE /api/jobs/:id - Delete application
-    if (req.method === 'DELETE' && pathname.startsWith('/api/jobs/')) {
-      const id = pathname.split('/')[3];
-      await pool.query('DELETE FROM job_applications WHERE id = $1', [id]);
+    // 6. DELETE /api/jobs/:id or /api/jobs?id=:id - Delete application
+    if (req.method === 'DELETE' && (pathname.startsWith('/api/jobs/') || (pathname === '/api/jobs' && jobId))) {
+      if (!jobId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing job ID' }));
+        return;
+      }
+      const id = jobId;
+      const deleteResult = await pool.query('DELETE FROM job_applications WHERE id = $1 RETURNING id', [id]);
+      if (deleteResult.rowCount === 0) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Record not found' }));
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true, deletedId: id }));
       return;

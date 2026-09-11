@@ -48,11 +48,17 @@ module.exports = async function handler(req, res) {
   const p = getPool();
   const body = parseBody(req);
   
-  // Extract ID from query or regex match on path
+  // Extract ID from query or regex match on path or searchParams
   let id = req.query && req.query.id;
   if (!id && req.url) {
     const match = req.url.match(/\/api\/jobs\/([^\/?#]+)/);
     if (match) id = match[1];
+  }
+  if (!id && req.url) {
+    try {
+      const u = new URL(req.url, 'http://localhost');
+      id = u.searchParams.get('id');
+    } catch {}
   }
 
   try {
@@ -144,9 +150,12 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(result.rows[0]);
     }
 
-    // DELETE /api/jobs?id=:id
+    // DELETE /api/jobs/:id or /api/jobs?id=:id
     if (req.method === 'DELETE' && id) {
-      await p.query('DELETE FROM job_applications WHERE id = $1', [id]);
+      const deleteResult = await p.query('DELETE FROM job_applications WHERE id = $1 RETURNING id', [id]);
+      if (deleteResult.rowCount === 0) {
+        return res.status(404).json({ error: 'Record not found' });
+      }
       return res.status(200).json({ success: true, deletedId: id });
     }
 
