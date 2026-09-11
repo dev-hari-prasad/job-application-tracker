@@ -1,4 +1,4 @@
-﻿# Job Application Command Center
+# Job Application Command Center
 
 A modern job application tracking dashboard backed by **Neon PostgreSQL** and built with **Tailwind CSS**, **Node.js**, and **Vercel Serverless Functions**. Designed for personal tracking and autonomous AI agents.
 
@@ -69,7 +69,7 @@ A modern job application tracking dashboard backed by **Neon PostgreSQL** and bu
 
 ## AI Agent Integration
 
-An agent skill is included under `.agents/skills/job-application-tracker/SKILL.md`.
+An agent skill is included under `.agents/skills/job-application-tracker.md`.
 
 ### Record an Application:
 ```bash
